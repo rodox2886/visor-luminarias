@@ -1,15 +1,13 @@
 
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Visor de Luminarias</title>
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
-  <style>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Visor de Luminarias</title>
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
+<style>
     html, body {
       margin: 0;
       padding: 0;
@@ -37,12 +35,11 @@
   </style>
 </head>
 <body>
-  <select id="planchetaSelector" style="position: absolute; top: 10px; left: 10px; z-index: 1000;"></select>
-  <button onclick="enableAddLuminaria()" style="position: absolute; top: 50px; left: 10px; z-index: 1000;">Agregar luminaria</button>
-  <div id="map"></div>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
+<select id="planchetaSelector" style="position: absolute; top: 10px; left: 10px; z-index: 1000;"></select>
+<button onclick="enableAddLuminaria()" style="position: absolute; top: 50px; left: 10px; z-index: 1000;">Agregar luminaria</button>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
     const map = L.map("map").setView([-34.582, -58.425], 16);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "© OpenStreetMap",
@@ -178,6 +175,47 @@
         map.removeLayer(marker);
       };
     }
-  </script>
+  
+        function updateMarkerPopup(marker, data) {
+            const formHTML = `
+                <b>Editar luminaria</b><br>
+                Tipo: <select id="editTipo">
+                    <option ${data.tipo === 'LED' ? 'selected' : ''}>LED</option>
+                    <option ${data.tipo === 'Sodio' ? 'selected' : ''}>Sodio</option>
+                </select><br>
+                Estado: <select id="editEstado">
+                    <option ${data.estado === 'Encendida' ? 'selected' : ''}>Encendida</option>
+                    <option ${data.estado === 'Apagada' ? 'selected' : ''}>Apagada</option>
+                </select><br>
+                Cantidad: <input type="number" id="editCantidad" value="${data.cantidad || 1}"><br>
+                Potencia (W): <input type="number" id="editPotencia" value="${data.potencia || ''}"><br>
+                <button onclick="saveMarkerData(marker)">Guardar</button>
+            `;
+            marker.bindPopup(formHTML).openPopup();
+        }
+
+        function saveMarkerData(marker) {
+            const tipo = document.getElementById('editTipo').value;
+            const estado = document.getElementById('editEstado').value;
+            const cantidad = document.getElementById('editCantidad').value;
+            const potencia = document.getElementById('editPotencia').value;
+
+            marker.options.customData = { tipo, estado, cantidad, potencia };
+            marker.setPopupContent(
+                `<b>Luminaria</b><br>
+                Tipo: ${tipo}<br>
+                Estado: ${estado}<br>
+                Cantidad: ${cantidad}<br>
+                Potencia: ${potencia}W`
+            );
+        }
+
+        markers.forEach(marker => {
+            marker.on('click', function() {
+                const data = marker.options.customData || {};
+                updateMarkerPopup(marker, data);
+            });
+        });
+        </script>
 </body>
 </html>
