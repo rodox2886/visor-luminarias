@@ -1,116 +1,188 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Visor de Luminarias</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
   <style>
-    body { margin: 0; font-family: sans-serif; background: #ddd; }
-    #map { height: 100vh; width: 100vw; }
-    .control {
-      position: absolute; top: 10px; left: 10px;
-      background: white; padding: 10px; border-radius: 5px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 1000;
+    body, html {
+      margin: 0;
+      height: 100%;
+      font-family: sans-serif;
     }
-    select, button, input { margin-top: 5px; display: block; width: 100%; }
-    .popup-form label { display:block; margin:5px 0 2px; }
+    #map {
+      height: 100%;
+    }
+    .control-panel {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      z-index: 999;
+    }
+    .popup-form {
+      font-size: 14px;
+    }
+    .popup-form input,
+    .popup-form select {
+      width: 100%;
+      margin-bottom: 4px;
+    }
   </style>
 </head>
 <body>
-<div class="control">
-  <label>Buscar plancheta:</label>
-  <select id="planchetaSelector">
-    <option value="">-- Seleccionar --</option>
-  </select>
-  <button onclick="enableAdd()">Agregar luminaria</button>
-</div>
-<div id="map"></div>
+  <div class="control-panel">
+    <label>Buscar plancheta:</label>
+    <select id="planchetaSelector"></select>
+    <br />
+    <button onclick="enableAddLuminaria()">Agregar luminaria</button>
+  </div>
+  <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script>
-const map = L.map('map').setView([-34.6, -58.4], 14);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: 'OpenStreetMap'
-}).addTo(map);
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map("map").setView([-34.582, -58.426], 16);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap",
+    }).addTo(map);
 
-const planchetas = {
-  "Plancheta A": [[-34.595, -58.41], [-34.59, -58.40]],
-  "Plancheta B": [[-34.6, -58.41], [-34.595, -58.40]],
-  "Plancheta C": [[-34.595, -58.405], [-34.59, -58.395]]
-};
+    const planchetas = {
+      "Plancheta A": [[-34.582, -58.427], [-34.5805, -58.425]],
+      "Plancheta B": [[-34.582, -58.425], [-34.5805, -58.423]],
+      "Plancheta C": [[-34.582, -58.423], [-34.5805, -58.421]],
+      "Plancheta D": [[-34.5805, -58.427], [-34.579, -58.425]],
+      "Plancheta E": [[-34.5805, -58.425], [-34.579, -58.423]],
+      "Plancheta F": [[-34.5805, -58.423], [-34.579, -58.421]],
+    };
 
-const markerLayer = L.layerGroup().addTo(map);
-let adding = false;
+    const colors = {
+      LED: "purple",
+      Sodio: "orange",
+      Mercurio: "blue",
+      Decorativa: "green",
+      Apagada: "gray",
+      Desconocida: "black"
+    };
 
-function enableAdd() {
-  adding = true;
-  map.once('click', e => {
-    addMarker(e.latlng);
-    adding = false;
-  });
-}
+    const selector = document.getElementById("planchetaSelector");
+    for (let p in planchetas) {
+      const option = document.createElement("option");
+      option.value = p;
+      option.innerText = p;
+      selector.appendChild(option);
+    }
+    selector.onchange = () => {
+      const bounds = planchetas[selector.value];
+      if (bounds) map.fitBounds(bounds);
+    };
 
-function addMarker(latlng, data = {}) {
-  const marker = L.marker(latlng, { draggable: true }).addTo(markerLayer);
+    const cuadriculas = [];
+    for (let name in planchetas) {
+      const bounds = planchetas[name];
+      const rect = L.rectangle(bounds, {
+        color: "orange",
+        weight: 2,
+        fillOpacity: 0.2,
+      }).addTo(map);
+      rect.bindTooltip(name, { permanent: true, direction: "center" });
+      cuadriculas.push(rect);
+    }
 
-  const container = document.createElement("div");
-  container.className = "popup-form";
-  container.innerHTML = `
-    <label>Tipo:</label>
-    <select id="tipo">
-      <option>LED</option><option>Sodio</option><option>Mercurio</option>
-      <option>Apagada</option><option>Decorativa</option><option>Desconocida</option>
-    </select>
-    <label>Estado:</label>
-    <select id="estado">
-      <option>Encendida</option><option>Apagada</option>
-    </select>
-    <label>Cantidad:</label>
-    <input type="number" id="cantidad" value="${data.cantidad || 1}" min="1"/>
-    <label>Potencia (W):</label>
-    <input type="text" id="potencia" value="${data.potencia || ''}"/>
-    <button onclick="saveData(this)">Guardar</button>
-    <button onclick="deleteMarker(this)">Eliminar</button>
-  `;
-  marker.bindPopup(container).openPopup();
-  marker.options.data = data;
-}
+    let adding = false;
+    let markers = [];
 
-function saveData(btn) {
-  const popup = btn.closest('.popup-form');
-  const marker = markerLayer.getLayers().find(m => m.getPopup().getContent() === popup);
-  if (!marker) return;
+    function enableAddLuminaria() {
+      adding = true;
+      map.getContainer().style.cursor = "crosshair";
+    }
 
-  marker.options.data = {
-    tipo: popup.querySelector('#tipo').value,
-    estado: popup.querySelector('#estado').value,
-    cantidad: popup.querySelector('#cantidad').value,
-    potencia: popup.querySelector('#potencia').value
-  };
-  marker.closePopup();
-}
+    map.on("click", (e) => {
+      if (!adding) return;
+      adding = false;
+      map.getContainer().style.cursor = "";
+      const latlng = e.latlng;
+      const marker = L.marker(latlng, {
+        icon: L.divIcon({
+          className: "custom-marker",
+          html: "⬤",
+          iconSize: [12, 12],
+        }),
+        draggable: true,
+      }).addTo(map);
 
-function deleteMarker(btn) {
-  const popup = btn.closest('.popup-form');
-  const marker = markerLayer.getLayers().find(m => m.getPopup().getContent() === popup);
-  if (marker) markerLayer.removeLayer(marker);
-}
+      showPopup(marker, null);
+      markers.push(marker);
+    });
 
-const select = document.getElementById('planchetaSelector');
-Object.keys(planchetas).forEach(p => {
-  const opt = document.createElement('option');
-  opt.text = p;
-  select.add(opt);
-});
-select.addEventListener('change', () => {
-  const coords = planchetas[select.value];
-  if (coords) {
-    const bounds = L.latLngBounds(coords);
-    map.fitBounds(bounds);
-  }
-});
-</script>
+    function showPopup(marker, data) {
+      const container = document.createElement("div");
+      container.className = "popup-form";
+
+      container.innerHTML = `
+        <label>Tipo:</label>
+        <select id="tipo">
+          <option>LED</option>
+          <option>Sodio</option>
+          <option>Mercurio</option>
+          <option>Decorativa</option>
+          <option>Desconocida</option>
+        </select>
+        <label>Estado:</label>
+        <select id="estado">
+          <option>Encendida</option>
+          <option>Apagada</option>
+        </select>
+        <label>Cantidad:</label>
+        <input type="number" id="cantidad" min="1" value="1" />
+        <label>Potencia (W):</label>
+        <input type="number" id="potencia" min="1" value="100" />
+        <button id="guardar">Guardar</button>
+        <button id="eliminar" style="margin-top: 4px;">Eliminar</button>
+      `;
+
+      const popup = L.popup().setContent(container);
+      marker.bindPopup(popup).openPopup();
+
+      if (data) {
+        container.querySelector("#tipo").value = data.tipo;
+        container.querySelector("#estado").value = data.estado;
+        container.querySelector("#cantidad").value = data.cantidad;
+        container.querySelector("#potencia").value = data.potencia;
+      }
+
+      container.querySelector("#guardar").onclick = () => {
+        const tipo = container.querySelector("#tipo").value;
+        const estado = container.querySelector("#estado").value;
+        const cantidad = container.querySelector("#cantidad").value;
+        const potencia = container.querySelector("#potencia").value;
+
+        marker.setIcon(
+          L.divIcon({
+            className: "custom-marker",
+            html: `<div style="color:${colors[tipo] || "black"}">⬤</div>`,
+            iconSize: [12, 12],
+          })
+        );
+
+        marker.unbindPopup();
+        marker.bindTooltip(
+          `${tipo} - ${estado} - ${cantidad}u - ${potencia}W`,
+          { permanent: true }
+        );
+        marker.closePopup();
+      };
+
+      container.querySelector("#eliminar").onclick = () => {
+        map.removeLayer(marker);
+      };
+    }
+  </script>
 </body>
 </html>
