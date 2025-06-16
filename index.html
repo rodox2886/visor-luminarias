@@ -14,7 +14,7 @@
       background: white; padding: 10px; border-radius: 5px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 1000;
     }
-    select, button { margin-top: 5px; display: block; width: 100%; }
+    select, button, input { margin-top: 5px; display: block; width: 100%; }
     .popup-form label { display:block; margin:5px 0 2px; }
   </style>
 </head>
@@ -30,103 +30,87 @@
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-const map = L.map('map').setView([-34.6, -58.45], 13);
+const map = L.map('map').setView([-34.6, -58.4], 14);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 20,
+  attribution: 'OpenStreetMap'
 }).addTo(map);
 
 const planchetas = {
-  "Plancheta A": [[-34.595, -58.46], [-34.59, -58.455]],
-  "Plancheta B": [[-34.59, -58.45], [-34.585, -58.445]],
-  "Plancheta C": [[-34.585, -58.44], [-34.58, -58.435]],
+  "Plancheta A": [[-34.595, -58.41], [-34.59, -58.40]],
+  "Plancheta B": [[-34.6, -58.41], [-34.595, -58.40]],
+  "Plancheta C": [[-34.595, -58.405], [-34.59, -58.395]]
 };
 
-const luminarias = [];
-
-function dibujarPlanchetas() {
-  for (const [nombre, coords] of Object.entries(planchetas)) {
-    const bounds = [coords[0], coords[1]];
-    const rect = L.rectangle(bounds, {
-      color: 'orange', weight: 1, fillOpacity: 0.3
-    }).addTo(map);
-    rect.bindTooltip(nombre, { permanent: true, direction: 'center' });
-    rect.nombre = nombre;
-    rect.bounds = rect.getBounds();
-  }
-}
-dibujarPlanchetas();
-
-document.getElementById("planchetaSelector").innerHTML +=
-  Object.keys(planchetas).map(p => `<option value="${p}">${p}</option>`).join('');
-
-document.getElementById("planchetaSelector").addEventListener("change", e => {
-  const bounds = planchetas[e.target.value];
-  if (bounds) map.fitBounds([bounds[0], bounds[1]]);
-});
-
+const markerLayer = L.layerGroup().addTo(map);
 let adding = false;
+
 function enableAdd() {
   adding = true;
-  map.getContainer().style.cursor = 'crosshair';
+  map.once('click', e => {
+    addMarker(e.latlng);
+    adding = false;
+  });
 }
 
-map.on("click", (e) => {
-  if (!adding) return;
-  adding = false;
-  map.getContainer().style.cursor = '';
+function addMarker(latlng, data = {}) {
+  const marker = L.marker(latlng, { draggable: true }).addTo(markerLayer);
 
-  const marker = L.circleMarker(e.latlng, {
-    radius: 8, fillColor: "purple", color: "#000", weight: 1, fillOpacity: 0.8
-  }).addTo(map);
+  const container = document.createElement("div");
+  container.className = "popup-form";
+  container.innerHTML = `
+    <label>Tipo:</label>
+    <select id="tipo">
+      <option>LED</option><option>Sodio</option><option>Mercurio</option>
+      <option>Apagada</option><option>Decorativa</option><option>Desconocida</option>
+    </select>
+    <label>Estado:</label>
+    <select id="estado">
+      <option>Encendida</option><option>Apagada</option>
+    </select>
+    <label>Cantidad:</label>
+    <input type="number" id="cantidad" value="${data.cantidad || 1}" min="1"/>
+    <label>Potencia (W):</label>
+    <input type="text" id="potencia" value="${data.potencia || ''}"/>
+    <button onclick="saveData(this)">Guardar</button>
+    <button onclick="deleteMarker(this)">Eliminar</button>
+  `;
+  marker.bindPopup(container).openPopup();
+  marker.options.data = data;
+}
 
-  const popup = L.popup().setContent(`
-    <div class="popup-form">
-      <label>Tipo:</label>
-      <select id="tipo">
-        <option>LED</option>
-        <option>Sodio</option>
-        <option>Mercurio</option>
-        <option>Decorativa</option>
-        <option>Desconocida</option>
-      </select>
-      <label>Estado:</label>
-      <select id="estado">
-        <option>Encendida</option>
-        <option>Apagada</option>
-        <option>Desconocido</option>
-      </select>
-      <button onclick="guardarLuminaria(this)">Guardar</button>
-      <button onclick="eliminarLuminaria(this)">Eliminar</button>
-    </div>
-  `);
+function saveData(btn) {
+  const popup = btn.closest('.popup-form');
+  const marker = markerLayer.getLayers().find(m => m.getPopup().getContent() === popup);
+  if (!marker) return;
 
-  marker.bindPopup(popup).openPopup();
-  marker._info = { latlng: e.latlng };
-  luminarias.push(marker);
+  marker.options.data = {
+    tipo: popup.querySelector('#tipo').value,
+    estado: popup.querySelector('#estado').value,
+    cantidad: popup.querySelector('#cantidad').value,
+    potencia: popup.querySelector('#potencia').value
+  };
+  marker.closePopup();
+}
+
+function deleteMarker(btn) {
+  const popup = btn.closest('.popup-form');
+  const marker = markerLayer.getLayers().find(m => m.getPopup().getContent() === popup);
+  if (marker) markerLayer.removeLayer(marker);
+}
+
+const select = document.getElementById('planchetaSelector');
+Object.keys(planchetas).forEach(p => {
+  const opt = document.createElement('option');
+  opt.text = p;
+  select.add(opt);
 });
-
-function guardarLuminaria(btn) {
-  const popup = btn.closest('.leaflet-popup-content');
-  const tipo = popup.querySelector('#tipo').value;
-  const estado = popup.querySelector('#estado').value;
-  const marker = luminarias.find(m => m.getPopup().getContent().includes(btn.outerHTML));
-  if (marker) {
-    marker.setStyle({ fillColor: tipo === 'LED' ? 'green' : tipo === 'Sodio' ? 'orange' : 'gray' });
-    marker.bindTooltip(`Tipo: ${tipo}<br>Estado: ${estado}`, { permanent: false });
-    marker._info.tipo = tipo;
-    marker._info.estado = estado;
-    marker.closePopup();
+select.addEventListener('change', () => {
+  const coords = planchetas[select.value];
+  if (coords) {
+    const bounds = L.latLngBounds(coords);
+    map.fitBounds(bounds);
   }
-}
-
-function eliminarLuminaria(btn) {
-  const marker = luminarias.find(m => m.getPopup().getContent().includes(btn.outerHTML));
-  if (marker) {
-    map.removeLayer(marker);
-    const i = luminarias.indexOf(marker);
-    if (i > -1) luminarias.splice(i, 1);
-  }
-}
+});
 </script>
 </body>
 </html>
