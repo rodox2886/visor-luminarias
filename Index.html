@@ -1,0 +1,96 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Visor de Luminarias</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        html, body, #map {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .menu {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #999;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+</head>
+<body>
+<div class="menu">
+    <label>Buscar plancheta:
+        <select id="planchetaSelect"></select>
+    </label>
+    <button onclick="activarAgregar()">Agregar luminaria</button>
+</div>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script>
+    const map = L.map('map').setView([-34.6, -58.45], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    const planchetas = [
+        { nombre: 'Plancheta A', bounds: [[-34.61, -58.46], [-34.60, -58.45]] },
+        { nombre: 'Plancheta B', bounds: [[-34.60, -58.46], [-34.59, -58.45]] },
+        { nombre: 'Plancheta C', bounds: [[-34.59, -58.46], [-34.58, -58.45]] }
+    ];
+
+    const planchetaSelect = document.getElementById("planchetaSelect");
+    planchetas.forEach(p => {
+        const option = document.createElement("option");
+        option.textContent = p.nombre;
+        planchetaSelect.appendChild(option);
+        L.rectangle(p.bounds, {color: "#ffa500", weight: 2}).addTo(map);
+    });
+
+    planchetaSelect.addEventListener("change", () => {
+        const selected = planchetas.find(p => p.nombre === planchetaSelect.value);
+        if (selected) {
+            map.fitBounds(selected.bounds);
+        }
+    });
+
+    let modoAgregar = false;
+    function activarAgregar() {
+        modoAgregar = true;
+        alert("Hacé clic dentro de una plancheta para agregar la luminaria.");
+    }
+
+    map.on('click', function(e) {
+        if (!modoAgregar) return;
+
+        const punto = e.latlng;
+        const planchetaEncontrada = planchetas.find(p =>
+            punto.lat >= p.bounds[0][0] && punto.lat <= p.bounds[1][0] &&
+            punto.lng >= p.bounds[0][1] && punto.lng <= p.bounds[1][1]
+        );
+
+        if (!planchetaEncontrada) {
+            alert("Solo se puede agregar dentro de una plancheta.");
+            return;
+        }
+
+        const marker = L.circleMarker(punto, { radius: 6, color: 'red', fillColor: '#f03', fillOpacity: 0.6 }).addTo(map);
+        marker.bindPopup(`Luminaria nueva en ${planchetaEncontrada.nombre}`).openPopup();
+        marker.on("contextmenu", function() {
+            map.removeLayer(marker);
+        });
+
+        modoAgregar = false;
+    });
+</script>
+</body>
+</html>
