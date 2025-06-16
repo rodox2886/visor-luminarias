@@ -106,8 +106,12 @@
           html: "⬤",
           iconSize: [12, 12],
         }),
-        draggable: true,
+        draggable: true
       }).addTo(map);
+      marker.on('click', () => {
+        const existingData = marker.options.customData || {};
+        showPopup(marker, existingData);
+      });
 
       showPopup(marker, null);
       markers.push(marker);
@@ -163,6 +167,12 @@
           })
         );
 
+        marker.options.customData = {
+          tipo,
+          estado,
+          cantidad,
+          potencia
+        };
         marker.unbindPopup();
         marker.bindTooltip(
           `${tipo} - ${estado} - ${cantidad}u - ${potencia}W`,
