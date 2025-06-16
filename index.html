@@ -1,54 +1,49 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Visor de Luminarias</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
   <style>
-    body, html {
+    html, body {
       margin: 0;
+      padding: 0;
       height: 100%;
-      font-family: sans-serif;
     }
     #map {
-      height: 100%;
-    }
-    .control-panel {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: white;
-      padding: 10px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      z-index: 999;
+      height: 100vh;
+      width: 100%;
     }
     .popup-form {
-      font-size: 14px;
+      display: flex;
+      flex-direction: column;
+      font-size: 0.9rem;
+      min-width: 180px;
+    }
+    .popup-form label {
+      margin-top: 5px;
+      font-weight: bold;
     }
     .popup-form input,
     .popup-form select {
-      width: 100%;
-      margin-bottom: 4px;
+      padding: 3px;
+      font-size: 0.9rem;
     }
   </style>
 </head>
 <body>
-  <div class="control-panel">
-    <label>Buscar plancheta:</label>
-    <select id="planchetaSelector"></select>
-    <br />
-    <button onclick="enableAddLuminaria()">Agregar luminaria</button>
-  </div>
+  <select id="planchetaSelector" style="position: absolute; top: 10px; left: 10px; z-index: 1000;"></select>
+  <button onclick="enableAddLuminaria()" style="position: absolute; top: 50px; left: 10px; z-index: 1000;">Agregar luminaria</button>
   <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const map = L.map("map").setView([-34.582, -58.426], 16);
+    const map = L.map("map").setView([-34.582, -58.425], 16);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "© OpenStreetMap",
     }).addTo(map);
