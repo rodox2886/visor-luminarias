@@ -7,141 +7,126 @@
   <title>Visor de Luminarias</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      background: #ddd;
+    body { margin: 0; font-family: sans-serif; background: #ddd; }
+    #map { height: 100vh; width: 100vw; }
+    .control {
+      position: absolute; top: 10px; left: 10px;
+      background: white; padding: 10px; border-radius: 5px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 1000;
     }
-    #map {
-      height: 100vh;
-    }
-    #panel {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: white;
-      padding: 10px;
-      border-radius: 8px;
-      box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
-      z-index: 1000;
-    }
-    select, button {
-      margin-top: 5px;
-      width: 100%;
-    }
-    .popup-form {
-      display: flex;
-      flex-direction: column;
-    }
-    .popup-form input, .popup-form select {
-      margin: 3px 0;
-    }
+    select, button { margin-top: 5px; display: block; width: 100%; }
+    .popup-form label { display:block; margin:5px 0 2px; }
   </style>
 </head>
 <body>
-<div id="panel">
-  <label><strong>Buscar plancheta:</strong></label>
-  <select id="planchetaSelect"></select>
-  <button id="addBtn">Agregar luminaria</button>
+<div class="control">
+  <label>Buscar plancheta:</label>
+  <select id="planchetaSelector">
+    <option value="">-- Seleccionar --</option>
+  </select>
+  <button onclick="enableAdd()">Agregar luminaria</button>
 </div>
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-  const map = L.map('map').setView([-34.6, -58.4], 14);
+const map = L.map('map').setView([-34.6, -58.45], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 20,
+}).addTo(map);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OSM'
+const planchetas = {
+  "Plancheta A": [[-34.595, -58.46], [-34.59, -58.455]],
+  "Plancheta B": [[-34.59, -58.45], [-34.585, -58.445]],
+  "Plancheta C": [[-34.585, -58.44], [-34.58, -58.435]],
+};
+
+const luminarias = [];
+
+function dibujarPlanchetas() {
+  for (const [nombre, coords] of Object.entries(planchetas)) {
+    const bounds = [coords[0], coords[1]];
+    const rect = L.rectangle(bounds, {
+      color: 'orange', weight: 1, fillOpacity: 0.3
+    }).addTo(map);
+    rect.bindTooltip(nombre, { permanent: true, direction: 'center' });
+    rect.nombre = nombre;
+    rect.bounds = rect.getBounds();
+  }
+}
+dibujarPlanchetas();
+
+document.getElementById("planchetaSelector").innerHTML +=
+  Object.keys(planchetas).map(p => `<option value="${p}">${p}</option>`).join('');
+
+document.getElementById("planchetaSelector").addEventListener("change", e => {
+  const bounds = planchetas[e.target.value];
+  if (bounds) map.fitBounds([bounds[0], bounds[1]]);
+});
+
+let adding = false;
+function enableAdd() {
+  adding = true;
+  map.getContainer().style.cursor = 'crosshair';
+}
+
+map.on("click", (e) => {
+  if (!adding) return;
+  adding = false;
+  map.getContainer().style.cursor = '';
+
+  const marker = L.circleMarker(e.latlng, {
+    radius: 8, fillColor: "purple", color: "#000", weight: 1, fillOpacity: 0.8
   }).addTo(map);
 
-  const planchetas = {
-    "Plancheta A": [[-34.61, -58.41], [-34.60, -58.40]],
-    "Plancheta B": [[-34.605, -58.41], [-34.595, -58.40]],
-    "Plancheta C": [[-34.6, -58.41], [-34.59, -58.40]]
-  };
-
-  const planchetaLayers = {};
-  for (const nombre in planchetas) {
-    const bounds = planchetas[nombre];
-    const rectangle = L.rectangle(bounds, { color: "orange", weight: 1, fillOpacity: 0.2 }).addTo(map);
-    planchetaLayers[nombre] = rectangle;
-  }
-
-  const select = document.getElementById("planchetaSelect");
-  Object.keys(planchetas).forEach(p => {
-    const opt = document.createElement("option");
-    opt.value = p;
-    opt.textContent = p;
-    select.appendChild(opt);
-  });
-
-  select.addEventListener("change", () => {
-    const bounds = planchetas[select.value];
-    map.fitBounds(bounds);
-  });
-
-  let addMode = false;
-  document.getElementById("addBtn").addEventListener("click", () => {
-    addMode = true;
-    alert("Hacé clic en el mapa dentro de una plancheta para agregar una luminaria.");
-  });
-
-  const luminarias = [];
-
-  function agregarLuminaria(latlng) {
-    const marker = L.circleMarker(latlng, {
-      radius: 8,
-      fillColor: "orange",
-      color: "#000",
-      weight: 1,
-      opacity: 1,
-      fillOpacity: 0.8
-    }).addTo(map);
-
-    const form = document.createElement("div");
-    form.className = "popup-form";
-    form.innerHTML = `
+  const popup = L.popup().setContent(`
+    <div class="popup-form">
       <label>Tipo:</label>
-      <select>
+      <select id="tipo">
         <option>LED</option>
         <option>Sodio</option>
-        <option>Apagada</option>
         <option>Mercurio</option>
         <option>Decorativa</option>
         <option>Desconocida</option>
       </select>
-      <label>Observaciones:</label>
-      <input type="text" placeholder="Notas..."/>
-      <button class="delete">Eliminar</button>
-    `;
+      <label>Estado:</label>
+      <select id="estado">
+        <option>Encendida</option>
+        <option>Apagada</option>
+        <option>Desconocido</option>
+      </select>
+      <button onclick="guardarLuminaria(this)">Guardar</button>
+      <button onclick="eliminarLuminaria(this)">Eliminar</button>
+    </div>
+  `);
 
-    form.querySelector(".delete").addEventListener("click", () => {
-      map.removeLayer(marker);
-    });
+  marker.bindPopup(popup).openPopup();
+  marker._info = { latlng: e.latlng };
+  luminarias.push(marker);
+});
 
-    marker.bindPopup(form).openPopup();
-    luminarias.push(marker);
+function guardarLuminaria(btn) {
+  const popup = btn.closest('.leaflet-popup-content');
+  const tipo = popup.querySelector('#tipo').value;
+  const estado = popup.querySelector('#estado').value;
+  const marker = luminarias.find(m => m.getPopup().getContent().includes(btn.outerHTML));
+  if (marker) {
+    marker.setStyle({ fillColor: tipo === 'LED' ? 'green' : tipo === 'Sodio' ? 'orange' : 'gray' });
+    marker.bindTooltip(`Tipo: ${tipo}<br>Estado: ${estado}`, { permanent: false });
+    marker._info.tipo = tipo;
+    marker._info.estado = estado;
+    marker.closePopup();
   }
+}
 
-  map.on("click", e => {
-    if (!addMode) return;
-    const clickedPoint = e.latlng;
-    let dentroDePlancheta = false;
-
-    for (const nombre in planchetaLayers) {
-      if (planchetaLayers[nombre].getBounds().contains(clickedPoint)) {
-        dentroDePlancheta = true;
-        break;
-      }
-    }
-
-    if (dentroDePlancheta) {
-      agregarLuminaria(clickedPoint);
-    } else {
-      alert("Hacé clic dentro de una plancheta.");
-    }
-    addMode = false;
-  });
+function eliminarLuminaria(btn) {
+  const marker = luminarias.find(m => m.getPopup().getContent().includes(btn.outerHTML));
+  if (marker) {
+    map.removeLayer(marker);
+    const i = luminarias.indexOf(marker);
+    if (i > -1) luminarias.splice(i, 1);
+  }
+}
 </script>
 </body>
 </html>
